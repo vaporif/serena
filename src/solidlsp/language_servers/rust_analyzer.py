@@ -5,6 +5,7 @@ Provides Rust specific instantiation of the LanguageServer class. Contains vario
 import logging
 import os
 import pathlib
+import shutil
 import subprocess
 import threading
 from typing import cast
@@ -64,7 +65,9 @@ class RustAnalyzer(SolidLanguageServer):
         except FileNotFoundError:
             pass
 
-        return None
+        # Fallback to system PATH
+
+        return shutil.which("rust-analyzer")
 
     @staticmethod
     def _ensure_rust_analyzer_installed() -> str:
