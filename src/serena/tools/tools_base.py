@@ -4,15 +4,16 @@ from abc import ABC
 from collections.abc import Iterable
 from dataclasses import dataclass
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Protocol, Self, TypeVar
+from typing import TYPE_CHECKING, Any, Protocol, Self, TypeVar, cast
 
+from mcp import Implementation
+from mcp.server.fastmcp import Context
 from mcp.server.fastmcp.utilities.func_metadata import FuncMetadata, func_metadata
 from sensai.util import logging
 from sensai.util.string import dict_string
 
 from serena.project import MemoriesManager, Project
 from serena.prompt_factory import PromptFactory
-from serena.symbol import LanguageServerSymbolRetriever
 from serena.util.class_decorators import singleton
 from serena.util.inspection import iter_subclasses
 from solidlsp.ls_exceptions import SolidLSPException
@@ -20,6 +21,7 @@ from solidlsp.ls_exceptions import SolidLSPException
 if TYPE_CHECKING:
     from serena.agent import SerenaAgent
     from serena.code_editor import CodeEditor
+    from serena.symbol import LanguageServerSymbolRetriever
 
 log = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -44,7 +46,9 @@ class Component(ABC):
     def memories_manager(self) -> "MemoriesManager":
         return self.project.memories_manager
 
-    def create_language_server_symbol_retriever(self) -> LanguageServerSymbolRetriever:
+    def create_language_server_symbol_retriever(self) -> "LanguageServerSymbolRetriever":
+        from serena.symbol import LanguageServerSymbolRetriever
+
         if not self.agent.is_using_language_server():
             raise Exception("Cannot create LanguageServerSymbolRetriever; agent is not in language server mode.")
         language_server_manager = self.agent.get_language_server_manager_or_raise()
@@ -114,6 +118,17 @@ class Tool(Component):
     # The docstring and types of the apply method are used to generate the tool description
     # (which is use by the LLM, so a good description is important)
     # and to validate the tool call arguments.
+
+    _last_tool_call_client_str: str | None = None
+    """We can only get the client info from within a tool call. Each tool call will update this variable."""
+
+    @classmethod
+    def set_last_tool_call_client_str(cls, client_str: str | None) -> None:
+        cls._last_tool_call_client_str = client_str
+
+    @classmethod
+    def get_last_tool_call_client_str(cls) -> str | None:
+        return cls._last_tool_call_client_str
 
     @classmethod
     def get_name_from_cls(cls) -> str:
@@ -217,12 +232,23 @@ class Tool(Component):
         return result
 
     def is_active(self) -> bool:
-        return self.agent.tool_is_active(self.__class__)
+        return self.agent.tool_is_active(self.get_name())
 
-    def apply_ex(self, log_call: bool = True, catch_exceptions: bool = True, **kwargs) -> str:  # type: ignore
+    def apply_ex(self, log_call: bool = True, catch_exceptions: bool = True, mcp_ctx: Context | None = None, **kwargs) -> str:  # type: ignore
         """
         Applies the tool with logging and exception handling, using the given keyword arguments
         """
+        if mcp_ctx is not None:
+            try:
+                client_params = mcp_ctx.session.client_params
+                if client_params is not None:
+                    client_info = cast(Implementation, client_params.clientInfo)
+                    client_str = client_info.title if client_info.title else client_info.name + " " + client_info.version
+                    if client_str != self.get_last_tool_call_client_str():
+                        log.debug(f"Updating client info: {client_info}")
+                        self.set_last_tool_call_client_str(client_str)
+            except BaseException as e:
+                log.info(f"Failed to get client info: {e}.")
 
         def task() -> str:
             apply_fn = self.get_apply_fn()

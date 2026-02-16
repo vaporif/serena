@@ -15,6 +15,8 @@ setting up a project with Serena typically involves the following steps:
 (project-creation-indexing)=
 ## Project Creation & Indexing
 
+Project creation is the process of defining fundamental project settings that are relevant to Serena's operation.
+
 You can create a project either  
  * implicitly, by just activating a directory as a project while already in a conversation; this will use default settings for your project (skip to the next section).
  * explicitly, using the project creation command, or
@@ -37,13 +39,35 @@ For instance, when using `uvx`, run
  * You can optionally specify a custom project name with `--name "My Project"`.
  * You can immediately index the project after creation with `--index`.
 
-After creation, you can adjust the project settings in the generated `.serena/project.yml` file.
+(project-config)=
+#### Project Configuration
+
+After creation, you can adjust the project settings in the generated `.serena/project.yml` file
+within the project directory.
+
+The file allows you to configure ...
+  * the set of programming languages for which language servers are spawned (not relevant when using the JetBrains plugin)  
+    Note that you can dynamically add/remove language servers while Serena is running via the [Dashboard](060_dashboard).
+  * the encoding used in source files
+  * ignore rules
+  * write access
+  * an initial prompt that shall be passed to the LLM whenever the project is activated 
+  * the name by which you want to refer to the project (relevant when telling the LLM to dynamically activate the project)
+  * the set of tools and modes to use by default
+
+For detailed information on the parameters and possible settings, see the 
+[template file](https://github.com/oraios/serena/blob/main/src/serena/resources/project.template.yml). 
 
 (indexing)=
 ### Indexing
 
-Especially for larger project, it is advisable to index the project after creation (in order to avoid
-delays during MCP server startup or the first tool application):
+:::{note}
+Indexing is not a relevant operation when using the JetBrains plugin, as indexing is handled by the IDE.
+:::
+
+Especially for larger project, it can be advisable to index the project after creation, pre-caching 
+symbol information provided by the language server(s). This will avoid delays during the first tool invocation
+that requires symbol information.
 
 While in the project directory, run this command:
    
@@ -51,6 +75,7 @@ While in the project directory, run this command:
 
 Indexing has to be called only once. During regular usage, Serena will automatically update the index whenever files change.
 
+(project-activation)=
 ## Project Activation
    
 Project activation makes Serena aware of the project you want to work with.
@@ -68,6 +93,8 @@ You can either choose to do this
  * when the MCP server starts, by passing the project path or name as a command-line argument
    (e.g. when using a single-project mode like `ide` or `claude-code`): `--project <path|name>`
 
+When working with the JetBrains plugin, be sure to have the same project folder open as a project in your IDE,
+i.e. the folder that is activated in Serena should correspond to the root folder of the project in your IDE.
 
 ## Onboarding & Memories
 

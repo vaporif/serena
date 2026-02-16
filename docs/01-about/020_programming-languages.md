@@ -29,9 +29,13 @@ Some languages require additional installations or setup steps, as noted.
 
 * **AL**
 * **Bash**
-* **C#**
+* **C#**  
+  (by default, uses the Roslyn language server (language `csharp`);
+  set language to `csharp_omnisharp` to use OmiSharp instead)
 * **C/C++**  
-  (you may experience issues with finding references, we are working on it)
+  (by default, uses the clangd language server (language `cpp`) but we also support ccls (language `cpp_ccls`);
+  for best results, provide a `compile_commands.json` at the repository root;
+  see the [C/C++ Setup Guide](../03-special-guides/cpp_setup) for details.)
 * **Clojure**
 * **Dart**
 * **Elixir**  
@@ -47,7 +51,7 @@ Some languages require additional installations or setup steps, as noted.
 * **Go**  
   (requires installation of `gopls`)
 * **Groovy**  
-  (requires local groovy-language-server.jar setup via GROOVY_LS_JAR_PATH or configuration)
+  (requires local groovy-language-server.jar setup via `GROOVY_LS_JAR_PATH` or configuration)
 * **Haskell**  
   (automatically locates HLS via ghcup, stack, or system PATH; supports Stack and Cabal projects)
 * **Java**  
@@ -57,18 +61,21 @@ Some languages require additional installations or setup steps, as noted.
   (uses the pre-alpha [official kotlin LS](https://github.com/Kotlin/kotlin-lsp), some issues may appear)
 * **Lua**
 * **Markdown**  
-  (must be explicitly specified via `--language markdown` when generating project config, primarily useful for documentation-heavy projects)
+  (must explicitly enable language `markdown`, primarily useful for documentation-heavy projects)
 * **Nix**  
   (requires nixd installation)
+* **Pascal**  
+  (uses Pascal/Lazarus, which is automatically downloaded; set `PP` and `FPCDIR` environment variables for source navigation)
 * **Perl**  
   (requires installation of Perl::LanguageServer)
 * **PHP**  
-  (uses Intelephense LSP; set `INTELEPHENSE_LICENSE_KEY` environment variable for premium features)
+  (by default, uses the Intelephense language server (language `php`), set `INTELEPHENSE_LICENSE_KEY` environment variable for premium features;
+  we also support [Phpactor](https://github.com/phpactor/phpactor) (language `php_phpactor`), which requires PHP 8.1+)
 * **Python**
 * **R**  
   (requires installation of the `languageserver` R package)
 * **Ruby**  
-  (by default, uses [ruby-lsp](https://github.com/Shopify/ruby-lsp), specify ruby_solargraph as your language to use the previous solargraph based implementation)
+  (by default, uses [ruby-lsp](https://github.com/Shopify/ruby-lsp) (language `ruby`); use language `ruby_solargraph` to use Solargraph instead.)
 * **Rust**  
   (requires [rustup](https://rustup.rs/) - uses rust-analyzer from your toolchain)
 * **Scala**  
@@ -89,7 +96,7 @@ see Serena's [memory on that](https://github.com/oraios/serena/blob/main/.serena
 As an alternative to language servers, the [Serena JetBrains Plugin](https://plugins.jetbrains.com/plugin/28946-serena/)
 leverages the powerful code analysis capabilities of JetBrains IDEs. 
 The plugin naturally supports all programming languages and frameworks that are supported by JetBrains IDEs, 
-including IntelliJ IDEA, PyCharm, Android Studio, AppCode, WebStorm, PhpStorm, RubyMine, GoLand, AppCode, CLion, Rider, and others.
+including IntelliJ IDEA, PyCharm, Android Studio, AppCode, WebStorm, PhpStorm, RubyMine, GoLand, AppCode, CLion, and others.
 
 When using the plugin, Serena connects to an instance of your JetBrains IDE via the plugin. For users who already
 work in a JetBrains IDE, this means Serena seamlessly integrates with the IDE instance you typically have open anyway,
