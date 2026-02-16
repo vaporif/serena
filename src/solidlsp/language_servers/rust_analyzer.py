@@ -52,7 +52,8 @@ class RustAnalyzer(SolidLanguageServer):
                     return result.stdout.strip()
             except FileNotFoundError:
                 return None
-            return None
+            # Fallback to system PATH
+            return shutil.which("rust-analyzer")
 
         @staticmethod
         def _get_rust_analyzer_via_rustup() -> str | None:
