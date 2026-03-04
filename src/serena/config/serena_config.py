@@ -85,6 +85,17 @@ class SerenaPaths:
         """
         file containing the ID of the last read news snippet
         """
+        global_memories_path = Path(os.path.join(self.serena_user_home_dir, "memories", "global"))
+        global_memories_path.mkdir(parents=True, exist_ok=True)
+        self.global_memories_path = global_memories_path
+        """
+        directory where global memories are stored, i.e. memories that are available across all projects
+        """
+        self.last_returned_log_file_path: str | None = None
+        """
+        the path to the last log file returned by `get_next_log_file_path`. If this is not None, the logs
+        are currently being written to this file
+        """
 
     def get_next_log_file_path(self, prefix: str) -> str:
         """
@@ -93,7 +104,8 @@ class SerenaPaths:
         """
         log_dir = os.path.join(self.serena_user_home_dir, "logs", datetime.now().strftime("%Y-%m-%d"))
         os.makedirs(log_dir, exist_ok=True)
-        return os.path.join(log_dir, prefix + "_" + datetime_tag() + ".txt")
+        self.last_returned_log_file_path = os.path.join(log_dir, prefix + "_" + datetime_tag() + f"_{os.getpid()}" + ".txt")
+        return self.last_returned_log_file_path
 
     # TODO: Paths from constants.py should be moved here
 
@@ -129,17 +141,17 @@ class ToolInclusionDefinition:
 
 
 @dataclass
+class NamedToolInclusionDefinition(ToolInclusionDefinition):
+    name: str | None = None
+
+    def __str__(self) -> str:
+        return f"ToolInclusionDefinition[{self.name}]"
+
+
+@dataclass
 class ModeSelectionDefinition:
     base_modes: Sequence[str] | None = None
     default_modes: Sequence[str] | None = None
-
-
-class SerenaConfigError(Exception):
-    pass
-
-
-def get_serena_managed_in_project_dir(project_root: str | Path) -> str:
-    return os.path.join(project_root, SERENA_MANAGED_DIR_NAME)
 
 
 class LanguageBackend(Enum):
@@ -162,8 +174,27 @@ class LanguageBackend(Enum):
         raise ValueError(f"Unknown language backend '{backend_str}': valid values are {[b.value for b in LanguageBackend]}")
 
 
+@dataclass
+class SharedConfig(ModeSelectionDefinition, ToolInclusionDefinition, ToStringMixin):
+    """Shared between SerenaConfig and ProjectConfig, the latter used to override values in the form
+    (same as in ModeSelectionDefinition).
+    The defaults here shall be none and should be set to the global default values in SerenaConfig.
+    """
+
+    symbol_info_budget: float | None = None
+    language_backend: LanguageBackend | None = None
+
+
+class SerenaConfigError(Exception):
+    pass
+
+
+def get_serena_managed_in_project_dir(project_root: str | Path) -> str:
+    return os.path.join(project_root, SERENA_MANAGED_DIR_NAME)
+
+
 @dataclass(kw_only=True)
-class ProjectConfig(ToolInclusionDefinition, ModeSelectionDefinition, ToStringMixin):
+class ProjectConfig(SharedConfig):
     project_name: str
     languages: list[Language]
     ignored_paths: list[str] = field(default_factory=list)
@@ -323,6 +354,20 @@ class ProjectConfig(ToolInclusionDefinition, ModeSelectionDefinition, ToStringMi
                     f"Invalid language: {orig_language_str}.\nValid language_strings are: {[l.value for l in Language]}"
                 ) from e
 
+        # Validate symbol_info_budget
+        symbol_info_budget_raw = data["symbol_info_budget"]
+        symbol_info_budget = symbol_info_budget_raw
+        if symbol_info_budget is not None:
+            try:
+                symbol_info_budget = float(symbol_info_budget_raw)
+            except (TypeError, ValueError) as e:
+                raise ValueError(f"symbol_info_budget must be a number or null, got: {symbol_info_budget_raw}") from e
+            if symbol_info_budget < 0:
+                raise ValueError(f"symbol_info_budget cannot be negative, got: {symbol_info_budget}")
+
+        language_backend_value = data.get("language_backend")
+        language_backend = LanguageBackend.from_str(language_backend_value) if language_backend_value else None
+
         return cls(
             project_name=data["project_name"],
             languages=languages,
@@ -334,8 +379,10 @@ class ProjectConfig(ToolInclusionDefinition, ModeSelectionDefinition, ToStringMi
             ignore_all_files_in_gitignore=data["ignore_all_files_in_gitignore"],
             initial_prompt=data["initial_prompt"],
             encoding=data["encoding"],
+            language_backend=language_backend,
             base_modes=data["base_modes"],
             default_modes=data["default_modes"],
+            symbol_info_budget=symbol_info_budget,
         )
 
     def _to_yaml_dict(self) -> dict:
@@ -344,6 +391,7 @@ class ProjectConfig(ToolInclusionDefinition, ModeSelectionDefinition, ToStringMi
         """
         d = dataclasses.asdict(self)
         d["languages"] = [lang.value for lang in self.languages]
+        d["language_backend"] = self.language_backend.value if self.language_backend is not None else None
         return d
 
     @classmethod
@@ -463,7 +511,7 @@ class RegisteredProject(ToStringMixin):
 
 
 @dataclass(kw_only=True)
-class SerenaConfig(ToolInclusionDefinition, ModeSelectionDefinition, ToStringMixin):
+class SerenaConfig(SharedConfig):
     """
     Holds the Serena agent configuration, which is typically loaded from a YAML configuration file
     (when instantiated via :method:`from_config_file`), which is updated when projects are added or removed.
@@ -507,9 +555,19 @@ class SerenaConfig(ToolInclusionDefinition, ModeSelectionDefinition, ToStringMix
     """List of paths to ignore across all projects. Same syntax as gitignore, so you can use * and **.
     These patterns are merged additively with each project's own ignored_paths."""
 
+    edit_global_memories: bool = True
+    """Whether global memories are allowed to be deleted or edited."""
+
     # settings with overridden defaults
     default_modes: Sequence[str] | None = ("interactive", "editing")
+    symbol_info_budget: float = 10.0
+    """
+    Time budget (seconds) for requests when tools request include_info (currently
+    only supported for LSP-based tools).
 
+    If the budget is exceeded, Serena stops issuing further requests and returns partial info results.
+    0 disables the budget (no early stopping). Negative values are invalid.
+    """
     # *** fields that are NOT mapped to/from the configuration file ***
 
     _loaded_commented_yaml: CommentedMap | None = None

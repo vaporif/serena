@@ -46,12 +46,13 @@ After creation, you can adjust the project settings in the generated `.serena/pr
 within the project directory.
 
 The file allows you to configure ...
-  * the set of programming languages for which language servers are spawned (not relevant when using the JetBrains plugin)  
+  * the set of programming languages for which language servers are spawned (not relevant when using the JetBrains plugin)
     Note that you can dynamically add/remove language servers while Serena is running via the [Dashboard](060_dashboard).
+  * the [language backend](per-project-language-backend) to use for this project (overriding the global setting)
   * the encoding used in source files
   * ignore rules
   * write access
-  * an initial prompt that shall be passed to the LLM whenever the project is activated 
+  * an initial prompt that shall be passed to the LLM whenever the project is activated
   * the name by which you want to refer to the project (relevant when telling the LLM to dynamically activate the project)
   * the set of tools and modes to use by default
 
@@ -102,22 +103,12 @@ By default, Serena will perform an **onboarding process** when
 it is started for the first time for a project.
 The goal of the onboarding is for Serena to get familiar with the project
 and to store memories, which it can then draw upon in future interactions.
-If an LLM should fail to complete the onboarding and does not actually write the
-respective memories to disk, you may need to ask it to do so explicitly.
 
-The onboarding will usually read a lot of content from the project, thus filling
-up the context. It can therefore be advisable to switch to another conversation
-once the onboarding is complete.
-After the onboarding, we recommend that you have a quick look at the memories and,
-if necessary, edit them or add additional ones.
+In general, **memories** provide a way for Serena to store and retrieve 
+information about the project, relevant conventions, and other relevant aspects.
 
-**Memories** are files stored in `.serena/memories/` in the project directory,
-which the agent can choose to read in subsequent interactions.
-Feel free to read and adjust them as needed; you can also add new ones manually.
-Every file in the `.serena/memories/` directory is a memory file.
-Whenever Serena starts working on a project, the list of memories is
-provided, and the agent can decide to read them.
-We found that memories can significantly improve the user experience with Serena.
+For more information on this, including how to manage
+or disable these features, see [Memories & Onboarding](045_memories).
 
 
 ## Preparing Your Project
